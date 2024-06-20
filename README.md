@@ -1,0 +1,2 @@
+# SIGTrading
+SIG FintechSoc Hackathon
