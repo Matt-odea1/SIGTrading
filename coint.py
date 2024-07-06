@@ -65,43 +65,65 @@ def get_matrices(prices):
     num_pairs = len(cointegrated_pairs)  # Number of cointegrated pairs
     
     # Initialize arrays dynamically based on the number of pairs
-    p_values = np.zeros(num_pairs)  # Initialize array for p-values
-    view_matrix = np.zeros((num_pairs, n_assets))  # Initialize view matrix
-    print("VIEW MATRIX SHAPE:")
-    print(view_matrix.shape)
-    print("")
-    
+    #TODO: for a combined matrix of coint and lagpairs - the num_pairs will be the cumulative num of pairs 
+    uncertainty_matrix = [np.zeros(num_pairs)] # Initialize array for p-values
+    view_matrix = [np.zeros(n_assets)]  # Initialize view matrix
+        
     # Loop through each cointegrated pair
-    for curr_row, pair in enumerate(cointegrated_pairs):
-            first_index = pair["first"]
-            second_index = pair["second"]
-            
-            spreads = prices[:, first_index] - prices[:, second_index]  # Calculate the spread between the two assets
-            current_spread = spreads[-1]  # Current spread (last value in the spread series)
+    for pair in cointegrated_pairs:
+        # This was not working because it wasn't in the loop rip 
+        view_number = len(view_matrix) - 1
 
-            upper_threshold = pair["upper_threshold"]
-            lower_threshold = pair["lower_threshold"]
+        first_index = pair["first"]
+        second_index = pair["second"]
             
-            if current_spread > upper_threshold:  # If current spread exceeds upper threshold
-                view_matrix[curr_row, first_index] = 1  # Long position on the first asset
-                view_matrix[curr_row, second_index] = -1  # Short position on the second asset
-                p_values[curr_row] = pair["pvalue"]  # Set p-value in the p_values array
-                #print("Signal: Long on", first_index, "and Short on", second_index)
-                #print(view_matrix[curr_row])
+        spreads = prices[:, first_index] - prices[:, second_index]  # Calculate the spread between the two assets
+        current_spread = spreads[-1]  # Current spread (last value in the spread series)
+
+        upper_threshold = pair["upper_threshold"]
+        lower_threshold = pair["lower_threshold"]
+            
+        if current_spread > upper_threshold:  # If current spread exceeds upper threshold
+        
+            view_matrix[view_number][first_index] = 1  # Long position on the first asset
+            view_matrix[view_number][second_index] = -1  # Short position on the second asset
+
+            uncertainty_matrix[view_number][view_number] = pair["pvalue"]  # Set p-value in the p_values array
+            
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
+            #print("Signal: Long on", first_index, "and Short on", second_index)
+            #print(view_matrix[curr_row])
                 
-            elif current_spread < lower_threshold:  # If current spread falls below lower threshold
-                view_matrix[curr_row, first_index] = -1  # Short position on the first asset
-                view_matrix[curr_row, second_index] = 1  # Long position on the second asset
-                p_values[curr_row] = pair["pvalue"]  # Set p-value in the p_values array
-                #print("Signal: Short on", first_index, "and Long on", second_index)
-                #print(view_matrix[curr_row])
+        elif current_spread < lower_threshold:  # If current spread falls below lower threshold
+            view_matrix[view_number][first_index] = -1  # Short position on the first asset
+            view_matrix[view_number][second_index] = 1  # Long position on the second asset
+            uncertainty_matrix[view_number][view_number] = pair["pvalue"]  # Set p-value in the p_values array
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
+            #print("Signal: Short on", first_index, "and Long on", second_index)
+            #print(view_matrix[curr_row])
 
-            save_matrices_to_file(p_values, view_matrix)
+    #This removes the a last empty row in the matrix
+    view_matrix = view_matrix[:-1]
+    uncertainty_matrix = uncertainty_matrix[:-1]
+    save_matrices_to_file(uncertainty_matrix, view_matrix)
 
+def replace_zeros_with_space(matrix):
+    # Create a string version of the matrix with spaces for zeros and formatted non-zeros
+    formatted_matrix = np.where(matrix == 0, " ", np.where(matrix != 0, np.char.mod('%.3f', matrix), matrix))
+    return formatted_matrix
 
-def save_matrices_to_file(p_values, view_matrix, output_file='out.txt'):
+def save_matrices_to_file(uncertainty_matrix, view_matrix, output_file='out.txt'):
+    # Replace zeros with space in the matrices and format non-zeros
+    uncertainty_matrix = replace_zeros_with_space(uncertainty_matrix)
+    view_matrix = replace_zeros_with_space(view_matrix)
+
     with open(output_file, 'w') as file:
         file.write("Uncertainty Matrix:\n")
-        np.savetxt(file, p_values.reshape(1, p_values.shape[0]), delimiter=',', fmt='%.5f')
+        for row in uncertainty_matrix:
+            file.write('[' + ' '.join(row) + ']\n')
+        
         file.write("\n\nView Matrix:\n")
-        np.savetxt(file, view_matrix, delimiter=',', fmt='%d')
+        for row in view_matrix:
+            file.write('[' + ' '.join(row) + ']\n')

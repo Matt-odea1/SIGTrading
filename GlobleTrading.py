@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
-import cvxpy as cp
+#import cvxpy as cp
 from coint import get_matrices
 
 # Set parameters

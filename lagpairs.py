@@ -103,19 +103,20 @@ def get_matrices(stocks_data):
         current_spread = spread[-1]
         
         if current_spread > entry_threshold:
+            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
+            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
             view_matrix[curr_view_row][lagging_idx] = 1
             #view_matrix[iteration][leading_idx] = -1
             p_matrix[curr_p_row][curr_p_row] = pair.get("pvalue")
-            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
-            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
             curr_view_row += 1
             curr_p_row += 1
         elif current_spread < -entry_threshold:
+            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
+            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
             view_matrix[curr_view_row][lagging_idx] = -1
             #view_matrix[iteration][leading_idx] = 1
             p_matrix[curr_p_row][curr_p_row] = pair.get("pvalue")
-            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
-            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
+           
             curr_view_row += 1
             curr_p_row += 1
     return p_matrix, view_matrix

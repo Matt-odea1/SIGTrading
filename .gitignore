@@ -1,3 +1,5 @@
 *.venv
 get-pip.py
 __pycache__
+prices_exported.csv
+out.txt
