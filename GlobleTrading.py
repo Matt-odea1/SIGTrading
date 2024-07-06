@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import cvxpy as cp
+from coint import get_matrices
 
 # Set parameters
 NINST = 50  # Number of instruments (stocks) in the portfolio
@@ -95,8 +96,13 @@ def getMyPosition(prc_so_far):
     # Example inputs for Black-Litterman model
     m_bar = np.zeros(NINST)  # Posterior mean returns (assumed zero for simplicity)
     S = np.cov(prc_so_far)  # Historical covariance matrix of stock returns
+
+    # zero matrix with ones in positions corresponding to the stocks you have views on.
     P = np.eye(NINST)  # Picking matrix (identity matrix for simplicity)
+
     Q = np.zeros(NINST)  # View vector (assumed zero for simplicity)
+
+    # UNCERTAINTY MATRIX
     W = np.eye(NINST)  # Covariance matrix of views (identity matrix for simplicity)
 
     # Example transaction costs and constraints
@@ -109,12 +115,12 @@ def getMyPosition(prc_so_far):
     # Optimize the portfolio using the Black-Litterman model
     try:
         optimal_weights = optimizePortfolio(prc_so_far, m_bar, S, P, Q, W, transaction_costs, leverage_ratio, d)
-        print("Optimal Weights:", optimal_weights)
+        #print("Optimal Weights:", optimal_weights)
 
         # Calculate the number of units to trade based on optimal weights and current prices
         current_prices = prc_so_far[:, -1]  # Assuming the last column represents the current prices
         num_units = optimal_weights * POSLIMIT / current_prices  # Convert weights to number of units
-        print("Number of Units to Trade:", num_units)
+        #print("Number of Units to Trade:", num_units)
 
         return num_units  # Return the number of units to trade
 

@@ -2,7 +2,8 @@
 
 import numpy as np
 import pandas as pd
-from teamName import getMyPosition as getPosition
+from GlobleTrading import getMyPosition as getPosition
+from coint import get_matrices
 
 nInst = 0
 nt = 0
@@ -12,14 +13,23 @@ dlrPosLimit = 10000
 
 def loadPrices(fn):
     global nt, nInst
-    df = pd.read_csv(fn, sep='\s+', header=None, index_col=None)
+    df = pd.read_csv(fn, sep=r'\s+', header=None, index_col=None)
     (nt, nInst) = df.shape
+    print (df.shape)
     return (df.values).T
-
 
 pricesFile = "./prices.txt"
 prcAll = loadPrices(pricesFile)
 print("Loaded %d instruments for %d days" % (nInst, nt))
+
+columns = [f"Day {i}" for i in range(nt)]
+index = [f"Stock {i}" for i in range(nInst)]
+df = pd.DataFrame(prcAll, index=index, columns=columns)
+df_transposed = df.T
+
+# Save the transposed DataFrame to a CSV file
+output_csv = "./prices_exported.csv"
+df_transposed.to_csv(output_csv)
 
 
 def calcPL(prcHist):
@@ -31,18 +41,30 @@ def calcPL(prcHist):
     value = 0
     todayPLL = []
     (_, nt) = prcHist.shape
-    for t in range(250, 501):
+    for t in range(250, 501): # (250, 501)
         prcHistSoFar = prcHist[:, :t]
         newPosOrig = getPosition(prcHistSoFar)
         curPrices = prcHistSoFar[:, -1]
+        get_matrices(prcHistSoFar)
+
+
+        # calc max amount allowed to hold ($10000 tops), then clip accordingly
         posLimits = np.array([int(x) for x in dlrPosLimit / curPrices])
         newPos = np.clip(newPosOrig, -posLimits, posLimits)
+
+        # find change in volumes 1 day to the next
         deltaPos = newPos - curPos
         dvolumes = curPrices * np.abs(deltaPos)
+
+        # sum total change in volume 
         dvolume = np.sum(dvolumes)
-        totDVolume += dvolume
-        comm = dvolume * commRate
+        totDVolume += dvolume # tracking total amount traded
+
+        comm = dvolume * commRate # commission value
+
+        # updates cash 
         cash -= curPrices.dot(deltaPos) + comm
+        print(cash)
         curPos = np.array(newPos)
         posValue = curPos.dot(curPrices)
         todayPL = cash + posValue - value
