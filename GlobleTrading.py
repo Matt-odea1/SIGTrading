@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 #import cvxpy as cp
-from coint import get_matrices
+from getMatrices import get_matrices
 
 # Set parameters
 NINST = 50  # Number of instruments (stocks) in the portfolio

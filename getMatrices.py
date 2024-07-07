@@ -1,82 +1,40 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jul  7 15:14:23 2024
+
+@author: anshdeosingh
+"""
+
+'''
+This files combines the get_matrices_coint and get_matrices_lag functions
+
+Rationale: Matrix handling becomes easy and is consistent - especially with the uncertainty 
+matrix because its diagonal nature is not preserved when combining them
+'''
 import numpy as np
 from itertools import combinations
 from statsmodels.tsa.stattools import coint
-# from helperFunctions import save_matrices_to_file
-
-def calculate_thresholds(data1, data2):
-    """
-    Calculate upper and lower thresholds for trading signals based on the spread between two time series.
-
-    Parameters:
-    data1 (ndarray): Time series data for the first stock.
-    data2 (ndarray): Time series data for the second stock.
-
-    Returns:
-    tuple: Upper threshold, lower threshold, and exit threshold for the spread.
-    """
-    spread = data1 - data2
-    mu = np.mean(spread)
-    sigma = np.std(spread)
-    upper_threshold = mu + 2 * sigma
-    lower_threshold = mu - 2 * sigma
-    exit_threshold = mu  # Example: Exit when spread reverts to mean
-    
-    return upper_threshold, lower_threshold, exit_threshold
+from coint import find_cointegrated_pairs
+from lagpairs import find_lag_pairs, calculate_spread, calculate_z_score, determine_thresholds
 
 
-def find_cointegrated_pairs(prices):
-    cointegrated_pairs = []
-    n_assets = prices.shape[0]
-
-    for idx1, idx2 in list(combinations(range(n_assets), 2)):
-        data1 = prices[idx1, :]
-        data2 = prices[idx2, :]
-    
-        result = coint(data1, data2)
-    
-        p_value = result[1]
-        if (p_value < 0.05):
-            upper_threshold, lower_threshold, exit_threshold = calculate_thresholds(data1, data2)
-            cointegrated_pairs.append({
-                "first": idx1, 
-                "second": idx2, 
-                "pvalue": p_value, 
-                "upper_threshold": upper_threshold, 
-                "lower_threshold": lower_threshold,  
-                "exit threshold": exit_threshold
-            })
-            print(f"P-value for pair ({idx1}, {idx2}): {p_value:.2f}")  # Print p_value rounded to 2 decimal places
-
-    return(cointegrated_pairs)
-
-
-'''
------------------------------------------------------------------------------------------------
-!!!! THIS FUNCTION HAS BEEN COMBINED WITH THE 'get_matrices_lag' function in 'getMatrices.py'
-Commenting this out just incase
------------------------------------------------------------------------------------------------
-
-
-def get_matrices_coint(prices):
-    """
-    Create P and view matrices for Black-Litterman model based on cointegrated pairs.
-
-    Parameters:
-    prices (ndarray): Array containing stock price data.
-
-    Returns:
-    None
-    """
+def get_matrices(prices):
     cointegrated_pairs = find_cointegrated_pairs(prices)  # Find cointegrated pairs
+    lag_pairs = find_lag_pairs(prices) #Find lagging and leading pairs
     
     n_assets = prices.shape[0]  # Number of assets
-    num_pairs = len(cointegrated_pairs)  # Number of cointegrated pairs
+    num_pairs = len(cointegrated_pairs) + len(lag_pairs)  # Number of cointegrated pairs
     
     # Initialize arrays dynamically based on the number of pairs
     #TODO: for a combined matrix of coint and lagpairs - the num_pairs will be the cumulative num of pairs 
     uncertainty_matrix = [np.zeros(num_pairs)] # Initialize array for p-values
     view_matrix = [np.zeros(n_assets)]  # Initialize view matrix
         
+    '''
+    GETTING TRADING SIGNALS FROM THE COINTEGRATED PAIRS
+    '''
+    
     view_number = 0
     # Loop through each cointegrated pair
     for pair in cointegrated_pairs:
@@ -116,11 +74,54 @@ def get_matrices_coint(prices):
             #print(view_matrix[curr_row])
             
             view_number += 1
+            
+            
+    '''
+    GETTING TRADING SIGNALS FROM THE LAGGING/LEADING PAIRS
+    '''
+    
+    for pair in lag_pairs:
+        leading_idx = pair["leading"]
+        lagging_idx = pair["lagging"]
+        
+        stock1 = prices[:, leading_idx]
+        stock2 = prices[:, lagging_idx]
+        
+        spread = calculate_spread(stock1, stock2)
+        z_score = calculate_z_score(spread)
+        
+        entry_threshold, exit_threshold = determine_thresholds(spread)
+        
+        current_z_score = z_score[-1]
+        
+        if current_z_score > entry_threshold:
+            view_matrix[view_number][lagging_idx] = 1
+            # view_matrix[view_number][leading_idx] = -1
+            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
+            
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
+            
+            view_number += 1
+            
+        elif current_z_score < -entry_threshold:
+            view_matrix[view_number][lagging_idx] = -1
+            # view_matrix[view_number][leading_idx] = 1
+            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
+            
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
+           
+            view_number += 1
 
+    
     #This removes the a last empty row in the matrix
     view_matrix = view_matrix[:-1]
     uncertainty_matrix = uncertainty_matrix[:-1]
+    
+    #preserving diaagonality of the uncertainty matrix
+    non_zero_columns = np.any(uncertainty_matrix != 0, axis=0)
+    uncertainty_matrix = uncertainty_matrix[:, non_zero_columns]
     # save_matrices_to_file(uncertainty_matrix, view_matrix)
     
     return uncertainty_matrix, view_matrix
-'''

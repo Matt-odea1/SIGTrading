@@ -6,18 +6,15 @@ Created on Sat Jul  6 20:24:43 2024
 @author: anshdeosingh
 """
 
-import pandas as pd
 import numpy as np
-import statsmodels.api as sm
 import statsmodels.tsa.stattools as ts
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from itertools import combinations
-import random
-from statsmodels.tsa.stattools import adfuller
+# from helperFunctions import save_matrices_to_file
 
 def calculate_spread(stock1, stock2):
     # Fit a linear regression model
-    slope, intercept = polyfit(stock2, stock1, 1)
+    slope, intercept = np.polyfit(stock2, stock1, 1)
     
     # Calculate spread
     spread = stock1 - (slope * stock2 + intercept)
@@ -31,7 +28,6 @@ def calculate_z_score(spread):
     return z_score
 
 def determine_thresholds(spread):
-    mean_spread = np.mean(spread)
     std_spread = np.std(spread)
     entry_threshold = 2 * std_spread
     exit_threshold = 0.5 * std_spread
@@ -39,13 +35,17 @@ def determine_thresholds(spread):
 
 def find_lag_pairs(stocks_data):
     granger_causal_pairs = []
-    n_stocks = stocks_data.shape[1]
+    n_stocks = stocks_data.shape[0]
 
     for pair in combinations(range(n_stocks), 2):
         idx1, idx2 = pair
         stock1 = stocks_data[:, idx1]
         stock2 = stocks_data[:, idx2]
+        
+        added12 = False
+        added21 = False
 
+        # print(f"({idx1}, {idx2})")
         # 1 lag of stock1 on stock2
         granger_result1 = ts.grangercausalitytests(np.vstack((stock1, stock2)).T, maxlag=1, verbose=False)
         pvalue1 = granger_result1[1][0]['params_ftest'][1]
@@ -55,6 +55,7 @@ def find_lag_pairs(stocks_data):
         
         if pvalue1 < 0.05:
             granger_causal_pairs.append(dict1)
+            added12 = True
 
         # 1 lag of stock2 on stock1
         granger_result2 = ts.grangercausalitytests(np.vstack((stock2, stock1)).T, maxlag=1, verbose=False)
@@ -65,9 +66,10 @@ def find_lag_pairs(stocks_data):
         
         if pvalue2 < 0.05:
             granger_causal_pairs.append(dict2)
+            added21 = True
 
         # Compare and remove duplicates or conflicting directions
-        if granger_result1 and granger_result2:
+        if added12 and added21:
             if pvalue1 < pvalue2:
                 granger_causal_pairs.remove(dict2)
             elif fstat1 > fstat2:
@@ -77,50 +79,63 @@ def find_lag_pairs(stocks_data):
 
     return granger_causal_pairs
 
-def get_matrices(stocks_data):
-    lag_pairs = find_lag_pairs(stocks_data)
-    lag_pairs_count = len(lag_pairs)
-    p_matrix = np.zeros((lag_pairs_count, lag_pairs_count))# Initialize P matrix with zeros
-    view_matrix = [np.zeros(50)]
+'''
+-----------------------------------------------------------------------------------------------
+!!!! THIS FUNCTION HAS BEEN COMBINED WITH THE 'get_matrices_coint' function in 'getMatrices.py'
+Commenting this out just incase
+-----------------------------------------------------------------------------------------------
+def get_matrices_lag (prices):
+    lag_pairs = find_lag_pairs(prices)
+    num_pairs = len(lag_pairs)
+    n_assets= prices.shape[0]
     
-    lag_pairs = find_lag_pairs(stocks_data)
+    uncertainty_matrix = [np.zeros(num_pairs)]# Initialize P matrix with zeros
+    view_matrix = [np.zeros(n_assets)]
     
-    curr_view_row = view_matrix.shape[0] - 1
-    curr_p_row = p_matrix.shape[0] - 1    
+    view_number = 0 # iterator
     
-    for idx, pair in lag_pairs:
+    for pair in lag_pairs:
         leading_idx = pair["leading"]
         lagging_idx = pair["lagging"]
         
-        stock1 = stocks_data[:, leading_idx]
-        stock2 = stocks_data[:, lagging_idx]
+        stock1 = prices[:, leading_idx]
+        stock2 = prices[:, lagging_idx]
         
         spread = calculate_spread(stock1, stock2)
         z_score = calculate_z_score(spread)
         
         entry_threshold, exit_threshold = determine_thresholds(spread)
         
-        current_spread = spread[-1]
+        current_z_score = z_score[-1]
         
-        if current_spread > entry_threshold:
-            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
-            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
-            view_matrix[curr_view_row][lagging_idx] = 1
-            #view_matrix[iteration][leading_idx] = -1
-            p_matrix[curr_p_row][curr_p_row] = pair.get("pvalue")
-            curr_view_row += 1
-            curr_p_row += 1
-        elif current_spread < -entry_threshold:
-            p_matrix = np.vstack([p_matrix, np.zeros(p_matrix, int)])
-            view_matrix = np.vstack([view_matrix, np.zeros(50, int)])
-            view_matrix[curr_view_row][lagging_idx] = -1
-            #view_matrix[iteration][leading_idx] = 1
-            p_matrix[curr_p_row][curr_p_row] = pair.get("pvalue")
-           
-            curr_view_row += 1
-            curr_p_row += 1
-    return p_matrix, view_matrix
+        if current_z_score > entry_threshold:
+            view_matrix[view_number][lagging_idx] = 1
+            # view_matrix[view_number][leading_idx] = -1
+            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
             
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
+            
+            view_number += 1
+            
+        elif current_z_score < -entry_threshold:
+            view_matrix[view_number][lagging_idx] = -1
+            # view_matrix[view_number][leading_idx] = 1
+            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
+            
+            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
+            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
+           
+            view_number += 1
+            
+    #removes the last line full of zeros
+    view_matrix = view_matrix[:-1]
+    uncertainty_matrix = uncertainty_matrix[:-1]
+    
+    # save_matrices_to_file(uncertainty_matrix, view_matrix)
+            
+    return uncertainty_matrix, view_matrix
+'''         
 
     
     

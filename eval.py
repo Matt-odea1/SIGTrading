@@ -3,7 +3,8 @@
 import numpy as np
 import pandas as pd
 from GlobleTrading import getMyPosition as getPosition
-from coint import get_matrices
+from getMatrices import get_matrices
+from helperFunctions import save_matrices_to_file
 
 nInst = 0
 nt = 0
@@ -45,9 +46,11 @@ def calcPL(prcHist):
         prcHistSoFar = prcHist[:, :t]
         newPosOrig = getPosition(prcHistSoFar)
         curPrices = prcHistSoFar[:, -1]
-        get_matrices(prcHistSoFar)
-
-
+        
+        uncertainty_matrix, view_matrix = get_matrices(prcHistSoFar)
+        
+        save_matrices_to_file(uncertainty_matrix, view_matrix)
+        
         # calc max amount allowed to hold ($10000 tops), then clip accordingly
         posLimits = np.array([int(x) for x in dlrPosLimit / curPrices])
         newPos = np.clip(newPosOrig, -posLimits, posLimits)
