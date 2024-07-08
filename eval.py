@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-
 import numpy as np
 import pandas as pd
 from GlobleTrading import getMyPosition as getPosition
 from getMatrices import get_matrices
 from helperFunctions import save_matrices_to_file
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 nInst = 0
 nt = 0
@@ -16,7 +16,6 @@ def loadPrices(fn):
     global nt, nInst
     df = pd.read_csv(fn, sep=r'\s+', header=None, index_col=None)
     (nt, nInst) = df.shape
-    print (df.shape)
     return (df.values).T
 
 pricesFile = "./prices.txt"
@@ -42,7 +41,7 @@ def calcPL(prcHist):
     value = 0
     todayPLL = []
     (_, nt) = prcHist.shape
-    for t in range(250, 251): # (250, 501)
+    for t in range(250, 275): # (250, 501)
         prcHistSoFar = prcHist[:, :t]
         newPosOrig = getPosition(prcHistSoFar)
         curPrices = prcHistSoFar[:, -1]
@@ -67,7 +66,7 @@ def calcPL(prcHist):
 
         # updates cash 
         cash -= curPrices.dot(deltaPos) + comm
-        print(cash)
+        #print(cash)
         curPos = np.array(newPos)
         posValue = curPos.dot(curPrices)
         todayPL = cash + posValue - value

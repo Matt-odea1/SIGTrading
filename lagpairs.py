@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jul  6 20:24:43 2024
-
-@author: anshdeosingh
-"""
-
 import numpy as np
 import statsmodels.tsa.stattools as ts
 # import matplotlib.pyplot as plt
@@ -39,13 +31,14 @@ def find_lag_pairs(stocks_data):
 
     for pair in combinations(range(n_stocks), 2):
         idx1, idx2 = pair
-        stock1 = stocks_data[:, idx1]
-        stock2 = stocks_data[:, idx2]
+
+        # BUGFIX - THIS WAS THE WRONG WAY AROUND
+        stock1 = stocks_data[idx1, :]
+        stock2 = stocks_data[idx2, :]
         
         added12 = False
         added21 = False
 
-        # print(f"({idx1}, {idx2})")
         # 1 lag of stock1 on stock2
         granger_result1 = ts.grangercausalitytests(np.vstack((stock1, stock2)).T, maxlag=1, verbose=False)
         pvalue1 = granger_result1[1][0]['params_ftest'][1]
@@ -56,6 +49,7 @@ def find_lag_pairs(stocks_data):
         if pvalue1 < 0.05:
             granger_causal_pairs.append(dict1)
             added12 = True
+            #print(stock1[-1], stock2[-1])
 
         # 1 lag of stock2 on stock1
         granger_result2 = ts.grangercausalitytests(np.vstack((stock2, stock1)).T, maxlag=1, verbose=False)
@@ -76,66 +70,7 @@ def find_lag_pairs(stocks_data):
                 granger_causal_pairs.remove(dict2)
             else:
                 granger_causal_pairs.remove(dict1)
-
+    
+    print(len(granger_causal_pairs))
     return granger_causal_pairs
-
-'''
------------------------------------------------------------------------------------------------
-!!!! THIS FUNCTION HAS BEEN COMBINED WITH THE 'get_matrices_coint' function in 'getMatrices.py'
-Commenting this out just incase
------------------------------------------------------------------------------------------------
-def get_matrices_lag (prices):
-    lag_pairs = find_lag_pairs(prices)
-    num_pairs = len(lag_pairs)
-    n_assets= prices.shape[0]
-    
-    uncertainty_matrix = [np.zeros(num_pairs)]# Initialize P matrix with zeros
-    view_matrix = [np.zeros(n_assets)]
-    
-    view_number = 0 # iterator
-    
-    for pair in lag_pairs:
-        leading_idx = pair["leading"]
-        lagging_idx = pair["lagging"]
-        
-        stock1 = prices[:, leading_idx]
-        stock2 = prices[:, lagging_idx]
-        
-        spread = calculate_spread(stock1, stock2)
-        z_score = calculate_z_score(spread)
-        
-        entry_threshold, exit_threshold = determine_thresholds(spread)
-        
-        current_z_score = z_score[-1]
-        
-        if current_z_score > entry_threshold:
-            view_matrix[view_number][lagging_idx] = 1
-            # view_matrix[view_number][leading_idx] = -1
-            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
-            
-            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
-            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
-            
-            view_number += 1
-            
-        elif current_z_score < -entry_threshold:
-            view_matrix[view_number][lagging_idx] = -1
-            # view_matrix[view_number][leading_idx] = 1
-            uncertainty_matrix[view_number][view_number] = pair.get("pvalue")
-            
-            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs, int)]])
-            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets, int)]])
-           
-            view_number += 1
-            
-    #removes the last line full of zeros
-    view_matrix = view_matrix[:-1]
-    uncertainty_matrix = uncertainty_matrix[:-1]
-    
-    # save_matrices_to_file(uncertainty_matrix, view_matrix)
-            
-    return uncertainty_matrix, view_matrix
-'''         
-
-    
     

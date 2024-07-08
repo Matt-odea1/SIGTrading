@@ -98,6 +98,7 @@ def getMyPosition(prc_so_far):
     S = np.cov(prc_so_far)  # Historical covariance matrix of stock returns
 
     # zero matrix with ones in positions corresponding to the stocks you have views on.
+    p_values, p_matrix = get_matrices(prc_so_far)
     P = np.eye(NINST)  # Picking matrix (identity matrix for simplicity)
 
     Q = np.zeros(NINST)  # View vector (assumed zero for simplicity)
@@ -128,3 +129,7 @@ def getMyPosition(prc_so_far):
         # Handle optimization errors and return zeros (no trading)
         print(e)
         return np.zeros(NINST)  # Return zeros or handle the error case appropriately
+    
+# Information ratio should be below 2.
+# How can we track this? 
+# If it is above 2, decrease the weight given to the views

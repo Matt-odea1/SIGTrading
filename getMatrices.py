@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jul  7 15:14:23 2024
-
-@author: anshdeosingh
-"""
-
 '''
 This files combines the get_matrices_coint and get_matrices_lag functions
 
@@ -13,8 +5,6 @@ Rationale: Matrix handling becomes easy and is consistent - especially with the 
 matrix because its diagonal nature is not preserved when combining them
 '''
 import numpy as np
-from itertools import combinations
-from statsmodels.tsa.stattools import coint
 from coint import find_cointegrated_pairs
 from lagpairs import find_lag_pairs, calculate_spread, calculate_z_score, determine_thresholds
 
@@ -59,8 +49,6 @@ def get_matrices(prices):
             
             uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
             view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
-            #print("Signal: Long on", first_index, "and Short on", second_index)
-            #print(view_matrix[curr_row])
             
             view_number += 1
                 
@@ -70,9 +58,7 @@ def get_matrices(prices):
             uncertainty_matrix[view_number][view_number] = pair["pvalue"]  # Set p-value in the p_values array
             uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
             view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
-            #print("Signal: Short on", first_index, "and Long on", second_index)
-            #print(view_matrix[curr_row])
-            
+
             view_number += 1
             
             

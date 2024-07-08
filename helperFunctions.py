@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jul  7 15:06:41 2024
-
-@author: anshdeosingh
-"""
-
-"""
-Contains the functions to handle files - for testing purposes only  
-
-"""
 import numpy as np
 
 def replace_zeros_with_space(matrix):

@@ -1,6 +1,7 @@
 import numpy as np
 from itertools import combinations
 from statsmodels.tsa.stattools import coint
+
 # from helperFunctions import save_matrices_to_file
 
 def calculate_thresholds(data1, data2):
@@ -17,8 +18,8 @@ def calculate_thresholds(data1, data2):
     spread = data1 - data2
     mu = np.mean(spread)
     sigma = np.std(spread)
-    upper_threshold = mu + 2 * sigma
-    lower_threshold = mu - 2 * sigma
+    upper_threshold = mu + 2.5 * sigma
+    lower_threshold = mu - 2.5 * sigma
     exit_threshold = mu  # Example: Exit when spread reverts to mean
     
     return upper_threshold, lower_threshold, exit_threshold
@@ -33,6 +34,7 @@ def find_cointegrated_pairs(prices):
         data2 = prices[idx2, :]
     
         result = coint(data1, data2)
+
     
         p_value = result[1]
         if (p_value < 0.05):
@@ -45,82 +47,5 @@ def find_cointegrated_pairs(prices):
                 "lower_threshold": lower_threshold,  
                 "exit threshold": exit_threshold
             })
-            print(f"P-value for pair ({idx1}, {idx2}): {p_value:.2f}")  # Print p_value rounded to 2 decimal places
 
     return(cointegrated_pairs)
-
-
-'''
------------------------------------------------------------------------------------------------
-!!!! THIS FUNCTION HAS BEEN COMBINED WITH THE 'get_matrices_lag' function in 'getMatrices.py'
-Commenting this out just incase
------------------------------------------------------------------------------------------------
-
-
-def get_matrices_coint(prices):
-    """
-    Create P and view matrices for Black-Litterman model based on cointegrated pairs.
-
-    Parameters:
-    prices (ndarray): Array containing stock price data.
-
-    Returns:
-    None
-    """
-    cointegrated_pairs = find_cointegrated_pairs(prices)  # Find cointegrated pairs
-    
-    n_assets = prices.shape[0]  # Number of assets
-    num_pairs = len(cointegrated_pairs)  # Number of cointegrated pairs
-    
-    # Initialize arrays dynamically based on the number of pairs
-    #TODO: for a combined matrix of coint and lagpairs - the num_pairs will be the cumulative num of pairs 
-    uncertainty_matrix = [np.zeros(num_pairs)] # Initialize array for p-values
-    view_matrix = [np.zeros(n_assets)]  # Initialize view matrix
-        
-    view_number = 0
-    # Loop through each cointegrated pair
-    for pair in cointegrated_pairs:
-        # This was not working because it wasn't in the loop rip 
-        # view_number = len(view_matrix) - 1
-
-        first_index = pair["first"]
-        second_index = pair["second"]
-            
-        spreads = prices[:, first_index] - prices[:, second_index]  # Calculate the spread between the two assets
-        current_spread = spreads[-1]  # Current spread (last value in the spread series)
-
-        upper_threshold = pair["upper_threshold"]
-        lower_threshold = pair["lower_threshold"]
-            
-        if current_spread > upper_threshold:  # If current spread exceeds upper threshold
-        
-            view_matrix[view_number][first_index] = 1  # Long position on the first asset
-            view_matrix[view_number][second_index] = -1  # Short position on the second asset
-
-            uncertainty_matrix[view_number][view_number] = pair["pvalue"]  # Set p-value in the p_values array
-            
-            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
-            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
-            #print("Signal: Long on", first_index, "and Short on", second_index)
-            #print(view_matrix[curr_row])
-            
-            view_number += 1
-                
-        elif current_spread < lower_threshold:  # If current spread falls below lower threshold
-            view_matrix[view_number][first_index] = -1  # Short position on the first asset
-            view_matrix[view_number][second_index] = 1  # Long position on the second asset
-            uncertainty_matrix[view_number][view_number] = pair["pvalue"]  # Set p-value in the p_values array
-            uncertainty_matrix = np.vstack([uncertainty_matrix, [np.zeros(num_pairs)]])
-            view_matrix = np.vstack([view_matrix, [np.zeros(n_assets)]])
-            #print("Signal: Short on", first_index, "and Long on", second_index)
-            #print(view_matrix[curr_row])
-            
-            view_number += 1
-
-    #This removes the a last empty row in the matrix
-    view_matrix = view_matrix[:-1]
-    uncertainty_matrix = uncertainty_matrix[:-1]
-    # save_matrices_to_file(uncertainty_matrix, view_matrix)
-    
-    return uncertainty_matrix, view_matrix
-'''
